@@ -1,7 +1,7 @@
 /***
  * Created by Metri Wahyudi
  * At 10.10.2019
- * https://metri.wahyudi.net
+ *
  */
 class wahyudi{
     // Base Url
@@ -16,21 +16,35 @@ class wahyudi{
     options = {
         ignoreResponseInError:true,
         messageEl:'.message',
+        loadingEl:'#w-loading',
         contentEl:null
     };
     callbacks = {
-        httpStatus:[],
+        httpStatus:{
+            302:(d) => {
+                console.log('REDIRECTING');
+                console.log(this.request.getAllResponseHeaders());
+            }
+        },
         error:null,
         success:null,
         loading:[null,null]
     };
     storedResponse = {};
-
+    request = null;
     /***
      * Constructor
      * @param options
      */
     constructor(options = {}){
+        this.setOptions(options);
+    }
+
+    /***
+     * Set options
+     * @param options
+     */
+    setOptions(options = {}){
 
         this.options = $.extend(this.options,options);
         if(this.options.hasOwnProperty('url')){
@@ -129,6 +143,7 @@ class wahyudi{
      * @param param
      */
     runHttpStatusCallbacks(status,param){
+        console.log(status);
         if(this.callbacks.httpStatus.hasOwnProperty(status)){
             if (typeof this.callbacks.httpStatus.hasOwnProperty(status) === 'function'){
                 this.callbacks.httpStatus[status](param);
@@ -144,9 +159,11 @@ class wahyudi{
     loading(start){
         if(start) {
             console.log('Loading..');
+            $(this.options.loadingEl).slideDown();
             this.runCallback(this.callbacks.loading[0]);
         }else{
             console.log('Stop Loading');
+            $(this.options.loadingEl).slideUp();
             this.runCallback(this.callbacks.loading[1]);
         }
         return true;
@@ -171,7 +188,7 @@ class wahyudi{
     error(e){
         this.loading(false);
         console.log('ERROR');
-        console.log(e);
+        //console.log(e);
         if(!this.options.ignoreResponseInError){
             this.response(e.responseJSON);
         }
@@ -183,7 +200,7 @@ class wahyudi{
      * Execute xmlHttpRequest whit jQuery AJAX
      */
     execute(){
-        $.ajax({
+        this.request = $.ajax({
             url:this.url,
             type:this.type,
             data:this.data,
@@ -191,6 +208,7 @@ class wahyudi{
             beforeSend:() => this.loading(true),
             success:(d) => this.success(d),
             error:(e) => this.error(e),
+
         });
     }
 
@@ -199,8 +217,13 @@ class wahyudi{
      * @param d
      */
     response(d){
+
+        //console.log(this.request.getAllResponseHeaders());
+        ///console.log(redirect);
         for(let handler in this.registeredResponseHandler){
             if(this.registeredResponseHandler.hasOwnProperty(handler)){
+                //console.log(handler);
+                //console.log(d[handler]);
                 if(handler !== 'getItem' && handler !== 'getOption'){
                     if(d.hasOwnProperty(handler)){
                         this.registeredResponseHandler[handler](d[handler]);
@@ -233,13 +256,14 @@ class wahyudi{
         }
         return null;
     }
-    addHeaders(headers){
-        this.headers = $.extend(this.headers,headers);
+    addHeaders(headerName,headerValue){
+        //this.headers = $.extend(this.headers,headers);
+        this.headers[headerName] = headerValue;
         return this;
     }
-    removeHeader(headers){
-        if(this.headers.hasOwnProperty(headers)){
-            delete this.headers[headers];
+    removeHeader(headerName){
+        if(this.headers.hasOwnProperty(headerName)){
+            delete this.headers[headerName];
         }
         return this;
     }
@@ -361,6 +385,29 @@ class wahyudi{
                         status = status === 'error' ? 'danger' : status;
                         $(messageEl).html('<div class="alert alert-'+status+'"><a href="#" class="close" data-dismiss="alert">&times;</a>'+message+'</div>');
                     }
+                }
+            }
+        },
+        errors(errors){
+            console.log(errors);
+            for(let i in errors){
+                if(errors.hasOwnProperty(i)){
+                    let content = $('form.handle-errors').find('[name="'+i+'"]');
+                    content.next('div.errors').remove();
+                    content = content.after();
+                    let html = $('<div>',{class: 'errors text-danger'});
+                    if(typeof errors[i] === 'object'){
+                        for(let j in errors[i]){
+                            if(errors[i].hasOwnProperty(j)){
+                                html.append('<div><em>'+errors[i][j]+'</em></div>');
+                            }
+                        }
+                    }else if(typeof errors[i] === 'string'){
+                        if(errors[i].hasOwnProperty(j)){
+                            html.append('<div><em>'+errors[i]+'</em></div>');
+                        }
+                    }
+                    content.after(html);
                 }
             }
         },
